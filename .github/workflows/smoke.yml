@@ -49,7 +49,7 @@ jobs:
       - name: Installing node_modules
         run: yarn install
       - name: Set writable permission for app
-        run: chmod -R 777 /home/runner/work/sven-e2e/sven-e2e
+        run: chmod -R 777 /home/runner/work/AI-2_code/AI-2_code
       - name: Run Test iws-nway-call
         run: sudo docker run --init --rm --cap-add=SYS_ADMIN -w="/app" -e "CI=true" -e "SETTINGS=${{ github.event.inputs.environment}}" -v /home/runner/work/sven-e2e/sven-e2e:/app dkiro/jest-puppeteer:latest yarn run test:iws-nway-call
       - name: Collect iws-nway-call test results
