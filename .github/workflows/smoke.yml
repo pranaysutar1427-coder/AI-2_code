@@ -1,0 +1,80 @@
+# This is a basic workflow that is manually triggered
+
+name: Smoke Test
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  pull_request:
+    branches: master
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      environment:
+        description: 'Environment to run test (i.e tca)'
+        default: 'tca'
+        required: true
+      test_cmd:
+        description: 'Test Command'
+        default: 'test'
+        required: true
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "greet"
+  smokeTest:
+    name: "Smoke Test in ${{ github.event.inputs.environment}}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v1
+      - name: Set secret env file name
+        id: setenv
+        run: |
+          echo "SECRET_NAME=env_${{ github.event.inputs.environment}}" >> $GITHUB_ENV
+      - name: Decrypt keystore props
+        run: |
+            echo $SECRET_NAME
+            echo $ENV_FILE
+            echo $ENV_SECRET
+            echo "$ENV_SECRET" > .env.$ENV_FILE
+        env:
+          ENV_FILE:  "${{ github.event.inputs.environment }}"
+          ENV_SECRET: ${{ secrets[env.SECRET_NAME] }}
+      - name: List project files
+        run: |
+          ls -a -ltr && pwd
+      - name: Pulling docker image
+        run: docker pull dkiro/jest-puppeteer:latest
+      - name: Installing node_modules
+        run: yarn install
+      - name: Set writable permission for app
+        run: chmod -R 777 /home/runner/work/sven-e2e/sven-e2e
+      - name: Run Test iws-nway-call
+        run: sudo docker run --init --rm --cap-add=SYS_ADMIN -w="/app" -e "CI=true" -e "SETTINGS=${{ github.event.inputs.environment}}" -v /home/runner/work/sven-e2e/sven-e2e:/app dkiro/jest-puppeteer:latest yarn run test:iws-nway-call
+      - name: Collect iws-nway-call test results
+        uses: IgnusG/jest-report-action@v2.3.3
+        if: always() # Or use "continue-on-error: true" in previous test step
+        with:
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          junit-file: "./test-reports/iws-nway-call.xml"
+      - name: Upload Test Results iws-nway-call
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iws-nway-call
+          path: "./html-report"
+      - name: Run Test outbound-pstn
+        run: sudo docker run --init --rm --cap-add=SYS_ADMIN -w="/app" -e "CI=true" -e "SETTINGS=${{ github.event.inputs.environment}}" -v /home/runner/work/sven-e2e/sven-e2e:/app dkiro/jest-puppeteer:latest yarn run test:outbound-pstn
+      - name: Collect outbound-pstn test results
+        uses: IgnusG/jest-report-action@v2.3.3
+        if: always() # Or use "continue-on-error: true" in previous test step
+        with:
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          junit-file: "./test-reports/outbound-pstn.xml"
+      - name: Upload Test Results outbound-pstn
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outbound-pstn
+          path: "./html-report"
